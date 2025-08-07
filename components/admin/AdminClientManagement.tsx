@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { getClientsWithStats, getAllContent } from '@/app/actions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -42,52 +42,16 @@ export function AdminClientManagement() {
     const [loading, setLoading] = useState(true);
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
-    // Memoize the supabase client to prevent it from being recreated on every render
-    const supabase = useMemo(() => createClient(), []);
-
     const fetchClients = useCallback(async () => {
         try {
-            // Fetch all client profiles
-            const { data: profiles, error: profilesError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('role', 'client')
-                .order('created_at', { ascending: false });
-
-            if (profilesError) throw profilesError;
-
-            // Fetch stores and content counts for each client
-            const clientsWithData = await Promise.all(
-                (profiles || []).map(async (profile) => {
-                    // Get stores
-                    const { data: stores } = await supabase
-                        .from('stores')
-                        .select('id, name, brand_company, address')
-                        .eq('user_id', profile.id);
-
-                    // Get content count and latest upload
-                    const { data: content } = await supabase
-                        .from('content')
-                        .select('created_at')
-                        .eq('user_id', profile.id)
-                        .order('created_at', { ascending: false });
-
-                    return {
-                        ...profile,
-                        stores: stores || [],
-                        content_count: content?.length || 0,
-                        latest_upload: content?.[0]?.created_at || null,
-                    };
-                })
-            );
-
+            const clientsWithData = await getClientsWithStats();
             setClients(clientsWithData);
         } catch (error) {
             console.error('Error fetching clients:', error);
         } finally {
             setLoading(false);
         }
-    }, [supabase]);
+    }, []);
 
     const filterClients = useCallback(() => {
         if (!searchTerm) {
@@ -117,21 +81,14 @@ export function AdminClientManagement() {
 
     const downloadClientData = async (clientId: string, clientEmail: string) => {
         try {
-            // Fetch all client data
-            const { data: content, error } = await supabase
-                .from('content')
-                .select(`
-          *,
-          stores (name, brand_company, address)
-        `)
-                .eq('user_id', clientId);
-
-            if (error) throw error;
+            // Fetch all content and filter by client
+            const allContent = await getAllContent();
+            const content = allContent.filter(item => item.user_id === clientId);
 
             // Create CSV data
             const csvData = [
                 ['Title', 'Type', 'Store', 'Company', 'Address', 'Start Date', 'End Date', 'Recurrence', 'File URL', 'Upload Date'],
-                ...(content || []).map(item => [
+                ...content.map(item => [
                     item.title,
                     item.type,
                     item.stores?.name || '',

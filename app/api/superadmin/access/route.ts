@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateSuperadminAccess } from '@/lib/auth';
-import { createClient } from '@/utils/supabase/server';
+import { validateSuperadminAccess } from '@/app/actions/auth';
+import { getAllProfiles } from '@/app/actions/profiles';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,27 +14,21 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    const supabase = await createClient();
-    
-    // Get all users and profiles for superadmin view
-    const { data: profiles, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      return NextResponse.json(
-        { error: 'Failed to fetch data' },
-        { status: 500 }
-      );
-    }
+    try {
+      const profiles = await getAllProfiles();
     
     return NextResponse.json({
       message: 'Superadmin access granted',
       data: profiles,
       timestamp: new Date().toISOString()
     });
-    
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'Failed to fetch data' },
+        { status: 500 }
+      );
+    }
+
   } catch (error) {
     console.error('Superadmin access error:', error);
     return NextResponse.json(
@@ -49,7 +43,7 @@ export async function POST(request: NextRequest) {
     const superadminKey = request.headers.get('x-superadmin-key') || 
                          request.nextUrl.searchParams.get('superadmin_key');
     
-    if (!superadminKey || !await validateSuperadminAccess(superadminKey)) {
+    if (!superadminKey || !(await validateSuperadminAccess(superadminKey))) {
       return NextResponse.json(
         { error: 'Invalid or expired superadmin key' },
         { status: 401 }
@@ -58,29 +52,25 @@ export async function POST(request: NextRequest) {
     
     const body = await request.json();
     const { action, userId, newRole } = body;
-    
-    const supabase = await createClient();
-    
+
     switch (action) {
       case 'updateRole':
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ role: newRole })
-          .eq('id', userId);
-        
-        if (updateError) {
-          return NextResponse.json(
-            { error: 'Failed to update role' },
-            { status: 500 }
-          );
-        }
+        try {
+          const { updateProfile } = await import('@/app/actions/profiles');
+          await updateProfile(userId, { role: newRole });
         
         return NextResponse.json({
           message: 'Role updated successfully',
           userId,
           newRole
         });
-      
+        } catch (error) {
+          return NextResponse.json(
+            { error: 'Failed to update role' },
+            { status: 500 }
+          );
+        }
+
       default:
         return NextResponse.json(
           { error: 'Invalid action' },

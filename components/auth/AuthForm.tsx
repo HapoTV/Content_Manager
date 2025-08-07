@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
+import { signUp, signIn, getCurrentUser } from '@/app/actions/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -47,107 +48,6 @@ export function AuthForm({ mode, userType = 'client' }: AuthFormProps) {
       setGoogleLoading(false);
     }
   };
-  const signUp = async (email: string, password: string, role: 'client' | 'admin' = 'client') => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          role: role
-        }
-      }
-    });
-
-    if (error) throw error;
-
-    // If user is created, ensure profile exists with correct role
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: data.user.id,
-          email: data.user.email!,
-          role: role
-        });
-
-      if (profileError) {
-        console.error('Profile creation error:', profileError);
-        // Don't throw here as the user is already created
-      }
-    }
-
-    return data;
-  };
-
-  const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) throw error;
-    return data;
-  };
-
-  const getCurrentUserWithRetry = async (maxRetries = 3): Promise<any> => {
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) return null;
-
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (error) {
-          console.error(`Profile fetch attempt ${i + 1}:`, error);
-
-          if (i === maxRetries - 1) {
-            console.log('Creating new profile for user:', user.id);
-            // Create profile if it doesn't exist
-            const { data: newProfile, error: insertError } = await supabase
-              .from('profiles')
-              .insert({
-                id: user.id,
-                email: user.email!,
-                role: userType // Use the expected role based on sign-in type
-              })
-              .select()
-              .single();
-
-            if (insertError) {
-              console.error('Error creating profile:', insertError);
-              // Return user with default profile structure
-              return {
-                ...user, 
-                profile: { 
-                  id: user.id, 
-                  email: user.email!, 
-                  role: userType,
-                  created_at: new Date().toISOString()
-                } 
-              };
-            }
-
-            return { ...user, profile: newProfile };
-          }
-          // Wait before retry
-          await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); // Exponential backoff
-          continue;
-        }
-
-        return { ...user, profile };
-      } catch (err) {
-        console.error(`getCurrentUserWithRetry attempt ${i + 1} failed:`, err);
-        if (i === maxRetries - 1) throw err;
-        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); // Exponential backoff
-      }
-    }
-    return null;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,7 +67,7 @@ export function AuthForm({ mode, userType = 'client' }: AuthFormProps) {
         if (result.user) {
           // For signin, get user profile to determine redirect
           try {
-            const currentUser = await getCurrentUserWithRetry();
+            const currentUser = await getCurrentUser();
             console.log('Current user after signin:', currentUser);
 
             if (currentUser?.profile?.role === 'admin') {

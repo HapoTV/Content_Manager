@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { getAllContent } from '@/app/actions/content';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -58,28 +58,16 @@ export function BulkDownloadManager() {
         company: '',
     });
 
-    // Memoize the supabase client to prevent it from being recreated on every render
-    const supabase = useMemo(() => createClient(), []);
-
     const fetchContent = useCallback(async () => {
         try {
-            const { data, error } = await supabase
-                .from('content')
-                .select(`
-          *,
-          stores (name, brand_company, address),
-          profiles (email)
-        `)
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
-            setContent(data || []);
+      const data = await getAllContent();
+      setContent(data);
         } catch (error) {
             console.error('Error fetching content:', error);
         } finally {
             setLoading(false);
         }
-    }, [supabase]);
+    }, []);
 
     const applyFilters = useCallback(() => {
         let filtered = [...content];

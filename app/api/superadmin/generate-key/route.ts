@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSuperadminKey } from '@/lib/auth';
+import { createSuperadminKey } from '@/app/actions/auth';
 
 export async function POST(request: NextRequest) {
   try {

@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { createClient } from '@/utils/supabase/client';
+import { uploadFile } from '@/app/actions/storage';
+import { createContent } from '@/app/actions/content';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -27,9 +28,6 @@ export function ContentUpload({ userId, storeId, onSuccess }: ContentUploadProps
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Memoize the supabase client to prevent it from being recreated on every render
-  const supabase = useMemo(() => createClient(), []);
-
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setFiles(acceptedFiles);
   }, []);
@@ -50,24 +48,6 @@ export function ContentUpload({ userId, storeId, onSuccess }: ContentUploadProps
     return 'music';
   };
 
-  const uploadFile = async (file: File) => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random()}.${fileExt}`;
-    const filePath = `content/${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('content')
-      .upload(filePath, file);
-
-    if (uploadError) throw uploadError;
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('content')
-      .getPublicUrl(filePath);
-
-    return publicUrl;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (files.length === 0) {
@@ -80,11 +60,10 @@ export function ContentUpload({ userId, storeId, onSuccess }: ContentUploadProps
 
     try {
       for (const file of files) {
-        const fileUrl = await uploadFile(file);
+        const fileUrl = await uploadFile(file, userId);
 
-        const { error } = await supabase.from('content').insert({
+        await createContent(userId, {
           store_id: storeId,
-          user_id: userId,
           title: formData.title || file.name,
           type: getFileType(file),
           file_url: fileUrl,
@@ -94,8 +73,6 @@ export function ContentUpload({ userId, storeId, onSuccess }: ContentUploadProps
           recurrence_type: formData.recurrence_type,
           recurrence_days: formData.recurrence_days.length > 0 ? formData.recurrence_days : null,
         });
-
-        if (error) throw error;
       }
 
       setFiles([]);

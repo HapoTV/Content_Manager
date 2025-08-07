@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
-import { createClient } from '@/utils/supabase/server';
+import { getStores, getContentStats, getClientProfile } from '@/app/actions/index';
 import { notFound } from 'next/navigation';
 import { StoreForm } from '@/components/client/StoreForm';
 import { ContentUpload } from '@/components/client/ContentUpload';
@@ -8,58 +8,6 @@ import { ContentDashboard } from '@/components/client/ContentDashboard';
 import { ClientHeader } from '@/components/client/ClientHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Store, Upload, TrendingUp, Calendar } from 'lucide-react';
-
-// --- Helper Functions (No changes here) ---
-
-async function getStores(userId: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('stores')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  return data || [];
-}
-
-async function getContentStats(userId: string) {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from('content')
-    .select('type, created_at, start_date, end_date')
-    .eq('user_id', userId);
-
-  if (error) throw error;
-
-  const now = new Date();
-  return {
-    total: data?.length || 0,
-    active: data?.filter(item =>
-      new Date(item.start_date) <= now && new Date(item.end_date) >= now
-    ).length || 0,
-    scheduled: data?.filter(item =>
-      new Date(item.start_date) > now
-    ).length || 0,
-    thisMonth: data?.filter(item =>
-      new Date(item.created_at).getMonth() === now.getMonth() &&
-      new Date(item.created_at).getFullYear() === now.getFullYear()
-    ).length || 0,
-  };
-}
-
-async function getClientProfile(clientId: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', clientId)
-    .eq('role', 'client')
-    .single();
-  if (error) throw error;
-  return data;
-}
 
 // --- Page Component ---
 

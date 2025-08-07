@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
+import { signUp } from '@/app/actions/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -80,37 +81,6 @@ export function RegistrationForm({ userType = 'client' }: RegistrationFormProps)
     }
   };
 
-  const signUp = async (email: string, password: string, role: 'client' | 'admin' = 'client') => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          role: role
-        }
-      }
-    });
-
-    if (error) throw error;
-
-    // If user is created, ensure profile exists with correct role
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: data.user.id,
-          email: data.user.email!,
-          role: role
-        });
-
-      if (profileError) {
-        console.error('Profile creation error:', profileError);
-        // Don't throw here as the user is already created
-      }
-    }
-
-    return data;
-  };
 
   const validateField = (name: keyof FormData, value: string): string | undefined => {
     switch (name) {

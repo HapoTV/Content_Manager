@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { getAllContent } from '@/app/actions/content';
 import NextImage from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -13,15 +13,12 @@ import {
   Video,
   Music,
   Calendar,
-  Repeat,
   MapPin,
   Download,
   ExternalLink,
   Grid,
-  List,
   SortAsc,
   SortDesc,
-  Filter
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -61,33 +58,16 @@ export function ContentViewer() {
   const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Memoize the supabase client to prevent it from being recreated on every render
-  const supabase = useMemo(() => createClient(), []);
-
   const fetchContent = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('content')
-        .select(`
-          *,
-          stores (
-            name,
-            brand_company,
-            address,
-            latitude,
-            longitude
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setContent(data || []);
+      const data = await getAllContent();
+      setContent(data);
     } catch (error) {
       console.error('Error fetching content:', error);
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, []);
 
   const groupContent = useCallback(() => {
     const sorted = [...content].sort((a, b) => {

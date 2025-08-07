@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { createClient } from '@/utils/supabase/client';
+import { getContent } from '@/app/actions/content';
 import NextImage from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -41,6 +41,7 @@ interface ContentItem {
     stores: {
         name: string;
         brand_company: string;
+        address : string;
     };
 }
 
@@ -86,28 +87,16 @@ export function ContentDashboard({ userId, isAdminView }: ContentDashboardProps)
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 12;
 
-    // Memoize the supabase client to prevent it from being recreated on every render
-    const supabase = useMemo(() => createClient(), []);
-
     const fetchContent = useCallback(async () => {
         try {
-            const { data, error } = await supabase
-                .from('content')
-                .select(`
-          *,
-          stores (name, brand_company)
-        `)
-                .eq('user_id', userId)
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
-            setContent(data || []);
+            const data = await getContent(userId);
+            setContent(data);
         } catch (error) {
             console.error('Error fetching content:', error);
         } finally {
             setLoading(false);
         }
-    }, [supabase, userId]);
+    }, [userId]);
 
     useEffect(() => {
         fetchContent();
