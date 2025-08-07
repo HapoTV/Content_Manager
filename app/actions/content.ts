@@ -128,14 +128,14 @@ export async function deleteContent(contentId: string): Promise<void> {
 
 export async function getContentStats(userId: string): Promise<ContentStats> {
     const supabase = await createClient();
-
+    console.log('getContentStats');
     const { data, error } = await supabase
         .from('content')
         .select('type, created_at, start_date, end_date')
         .eq('user_id', userId);
 
     if (error) throw error;
-
+    console.log("fetched ContentStats",data);
     const now = new Date();
     return {
         total: data?.length || 0,
@@ -154,7 +154,7 @@ export async function getContentStats(userId: string): Promise<ContentStats> {
 
 export async function getContentById(contentId: string): Promise<ContentItem | null> {
     const supabase = await createClient();
-
+    console.log('getContentById', contentId);
     const { data, error } = await supabase
         .from('content')
         .select(`

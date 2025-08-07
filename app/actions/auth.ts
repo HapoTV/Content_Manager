@@ -17,6 +17,7 @@ export async function signUp(email: string, password: string, role: 'client' | '
     });
 
     if (error) throw error;
+    console.error("error at auth.ts line 20:", error);
 
     // If user is created, ensure profile exists with correct role
     if (data.user) {
@@ -29,7 +30,7 @@ export async function signUp(email: string, password: string, role: 'client' | '
             });
 
         if (profileError) {
-            console.error('Profile creation error:', profileError);
+            console.error('Profile creation error at auth.ts line 33:', profileError);
             // Don't throw here as the user is already created
         }
     }
@@ -46,6 +47,7 @@ export async function signIn(email: string, password: string) {
     });
 
     if (error) throw error;
+    console.error("error at auth.ts line 49:", error);
     return data;
 }
 
@@ -72,7 +74,7 @@ export async function getCurrentUser() {
         .single();
 
     if (error) {
-        console.error('Error fetching profile:', error);
+        console.error('Error fetching profile at auth.ts line 75 :', error);
 
         // If profile doesn't exist, create it with proper error handling
         const { data: newProfile, error: insertError } = await supabase
@@ -86,7 +88,7 @@ export async function getCurrentUser() {
             .single();
 
         if (insertError) {
-            console.error('Error creating profile:', insertError);
+            console.error('Error creating profile at auth.ts line 89 :', insertError);
             // Return user with a default profile if creation fails
             return {
                 ...user,
