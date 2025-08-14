@@ -179,9 +179,7 @@ export async function fetchAllContent(): Promise<{ success: boolean; content?: a
         stores (
           name,
           brand_company,
-          address,
-          latitude,
-          longitude
+          address
         ),
         profiles (email)
       `)

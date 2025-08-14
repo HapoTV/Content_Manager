@@ -1,7 +1,7 @@
+// components/client/ContentDashboard.tsx
 'use client';
 
 import {useState, useEffect, useCallback, useMemo} from 'react';
-import NextImage from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -16,33 +16,22 @@ import {
     SortDesc,
     Grid,
     List,
-    Image,
-    Video,
-    Music,
     Download,
     Eye,
     ChevronLeft,
     ChevronRight,
-    Loader2
+    Loader2, Delete
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fetchContentForUser } from '@/app/actions/data-actions';
 
-interface ContentItem {
-    id: string;
-    title: string;
-    type: 'image' | 'video' | 'music';
-    file_url: string;
-    file_size: number;
-    start_date: string;
-    end_date: string;
-    recurrence_type: string;
-    created_at: string;
-    stores: {
-        name: string;
-        brand_company: string;
-    };
-}
+// --- Reusable Component Imports ---
+import { ContentDetailModal } from "@/components/content/ContentDetailModal";
+import { ContentCard } from "@/components/content/ContentCard"; // --- FIX: Import the reusable card ---
+import { ContentItem } from "@/types/content";
+import { formatFileSize, getStatusBadge, getTypeIcon } from "@/utils/contentUtils";
+import { ContentPreviewTooltip } from '@/components/content/ContentPreviewTooltip'; // --- 1. IMPORT THE NEW COMPONENT ---
+
 
 interface ContentDashboardProps {
     userId: string;
@@ -84,13 +73,12 @@ export function ContentDashboard({ userId, isAdminView }: ContentDashboardProps)
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 12;
-
+    const itemsPerPage = viewMode === 'grid' ? 12 : 10; // Allow more items for grid view
 
     const fetchContent = useCallback(async () => {
+        setLoading(true);
         try {
             const result = await fetchContentForUser(userId);
-
             if (result.success) {
                 setContent(result.content || []);
             } else {
@@ -113,11 +101,14 @@ export function ContentDashboard({ userId, isAdminView }: ContentDashboardProps)
 
         // Apply filters
         if (filters.search) {
-            filtered = filtered.filter(item =>
-                item.title.toLowerCase().includes(filters.search.toLowerCase()) ||
-                item.stores.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-                item.stores.brand_company.toLowerCase().includes(filters.search.toLowerCase())
-            );
+            const searchLower = filters.search.toLowerCase();
+            filtered = filtered.filter(item => {
+                const titleMatch = item.title.toLowerCase().includes(searchLower);
+                // --- FIX 1: Safely check properties on the optional 'stores' object. ---
+                const storeNameMatch = (item.stores?.name?.toLowerCase() ?? '').includes(searchLower);
+                const companyMatch = (item.stores?.brand_company?.toLowerCase() ?? '').includes(searchLower);
+                return titleMatch || storeNameMatch || companyMatch;
+            });
         }
 
         if (filters.type) {
@@ -127,6 +118,9 @@ export function ContentDashboard({ userId, isAdminView }: ContentDashboardProps)
         if (filters.status) {
             const now = new Date();
             filtered = filtered.filter(item => {
+                // --- FIX 2: Prevent "Invalid Date" errors by guarding against undefined dates. ---
+                if (!item.start_date || !item.end_date) return false;
+
                 const startDate = new Date(item.start_date);
                 const endDate = new Date(item.end_date);
 
@@ -162,8 +156,8 @@ export function ContentDashboard({ userId, isAdminView }: ContentDashboardProps)
                 aValue = sort.field === 'created_at' ? new Date(aValue).getTime() : aValue;
                 bValue = sort.field === 'created_at' ? new Date(bValue).getTime() : bValue;
             } else {
-                aValue = aValue.toString().toLowerCase();
-                bValue = bValue.toString().toLowerCase();
+                aValue = aValue?.toString().toLowerCase() ?? '';
+                bValue = bValue?.toString().toLowerCase() ?? '';
             }
 
             if (sort.direction === 'asc') {
@@ -183,41 +177,11 @@ export function ContentDashboard({ userId, isAdminView }: ContentDashboardProps)
         currentPage * itemsPerPage
     );
 
-    const getTypeIcon = (type: string) => {
-        switch (type) {
-            // eslint-disable-next-line jsx-a11y/alt-text
-            case 'image': return <Image className="w-4 h-4" />;
-            case 'video': return <Video className="w-4 h-4" />;
-            case 'music': return <Music className="w-4 h-4" />;
-            default: return <Upload className="w-4 h-4" />;
-        }
-    };
-
-    const getStatusBadge = (item: ContentItem) => {
-        const now = new Date();
-        const startDate = new Date(item.start_date);
-        const endDate = new Date(item.end_date);
-
-        if (startDate > now) {
-            return <Badge variant="outline" className="text-blue-600 border-blue-200">Scheduled</Badge>;
-        } else if (endDate < now) {
-            return <Badge variant="secondary" className="text-gray-600">Archived</Badge>;
-        } else {
-            return <Badge variant="default" className="bg-green-600 text-white">Active</Badge>;
-        }
-    };
-
-    const formatFileSize = (bytes: number) => {
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        if (bytes === 0) return '0 Bytes';
-        const i = Math.floor(Math.log(bytes) / Math.log(1024));
-        return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-    };
 
     const handleSort = (field: SortOptions['field']) => {
         setSort(prev => ({
             field,
-            direction: prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc',
+            direction: prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc'
         }));
     };
 
@@ -227,7 +191,7 @@ export function ContentDashboard({ userId, isAdminView }: ContentDashboardProps)
             type: '',
             status: '',
             startDate: '',
-            endDate: '',
+            endDate: ''
         });
         setCurrentPage(1);
     };
@@ -277,11 +241,9 @@ export function ContentDashboard({ userId, isAdminView }: ContentDashboardProps)
                         </select>
 
                         {/* Status Filter */}
-                        <select
-                            className="w-full p-2 border border-gray-300 rounded-md"
+                        <select className="w-full p-2 border border-gray-300 rounded-md"
                             value={filters.status}
-                            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-                        >
+                            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}>
                             <option value="">All Status</option>
                             <option value="active">Active</option>
                             <option value="scheduled">Scheduled</option>
@@ -421,55 +383,8 @@ export function ContentDashboard({ userId, isAdminView }: ContentDashboardProps)
                 <>
                     {/* Grid View */}
                     {viewMode === 'grid' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {paginatedContent.map(item => (
-                                <Card key={item.id} className="hover:shadow-lg transition-all duration-200 cursor-pointer group">
-                                    <CardContent className="p-4">
-                                        <div className="flex items-start justify-between mb-3">
-                                            <div className="flex items-center gap-2">
-                                                {getTypeIcon(item.type)}
-                                                <span className="text-sm font-medium text-gray-600 capitalize">{item.type}</span>
-                                            </div>
-                                            {getStatusBadge(item)}
-                                        </div>
-
-                                        <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">{item.title}</h3>
-
-                                        <div className="space-y-2 text-sm text-gray-600 mb-4">
-                                            <p className="font-medium">{item.stores.name}</p>
-                                            <p className="text-xs">{item.stores.brand_company}</p>
-                                            <p className="text-xs">{formatFileSize(item.file_size)}</p>
-                                            <p className="text-xs">{format(new Date(item.created_at), 'MMM dd, yyyy')}</p>
-                                        </div>
-
-                                        <div className="flex gap-2">
-                                            <Tooltip content="View details" variant="dark">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => setSelectedContent(item)}
-                                                    className="flex-1"
-                                                >
-                                                    <Eye className="w-4 h-4 mr-1" />
-                                                    View
-                                                </Button>
-                                            </Tooltip>
-
-                                            {isAdminView && (
-                                                <Tooltip content="Download file" variant="dark">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => window.open(item.file_url, '_blank')}
-                                                    >
-                                                        <Download className="w-4 h-4" />
-                                                    </Button>
-                                                </Tooltip>
-                                            )}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            {paginatedContent.map(item => <ContentCard key={item.id} item={item} isSelected={selectedContent?.id === item.id} onSelectItem={() => setSelectedContent(item)} onViewDetails={() => setSelectedContent(item)} />)}
                         </div>
                     )}
 
@@ -493,18 +408,26 @@ export function ContentDashboard({ userId, isAdminView }: ContentDashboardProps)
                                         {paginatedContent.map(item => (
                                             <tr key={item.id} className="border-b hover:bg-gray-50">
                                                 <td className="p-4">
-                                                    <div className="flex items-center gap-3">
+                                                    {/* --- 2. WRAP THE CONTENT CELL WITH THE TOOLTIP --- */}
+                                                    <Tooltip
+                                                        position="right"
+                                                        variant="dark"
+                                                        className="p-0 bg-transparent border-none shadow-none" // Make tooltip container invisible
+                                                        content={<ContentPreviewTooltip item={item} />}
+                                                    >
+                                                        <div className="flex items-center gap-3 cursor-default">
                                                         {getTypeIcon(item.type)}
                                                         <div>
                                                             <p className="font-medium text-gray-900">{item.title}</p>
                                                             <p className="text-sm text-gray-600 capitalize">{item.type}</p>
                                                         </div>
                                                     </div>
+                                                    </Tooltip>
                                                 </td>
                                                 <td className="p-4">
                                                     <div>
-                                                        <p className="font-medium text-gray-900">{item.stores.name}</p>
-                                                        <p className="text-sm text-gray-600">{item.stores.brand_company}</p>
+                                                        <p className="font-medium text-gray-900">{item.stores?.name ?? 'N/A'}</p>
+                                                        <p className="text-sm text-gray-600">{item.stores?.brand_company ?? 'N/A'}</p>
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
@@ -519,26 +442,11 @@ export function ContentDashboard({ userId, isAdminView }: ContentDashboardProps)
                                                 <td className="p-4">
                                                     <div className="flex gap-2">
                                                         <Tooltip content="View details" variant="dark">
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => setSelectedContent(item)}
-                                                            >
-                                                                <Eye className="w-4 h-4" />
-                                                            </Button>
+                                                            <Button variant="outline" size="sm" onClick={() => setSelectedContent(item)}><Eye className="w-4 h-4" /></Button>
                                                         </Tooltip>
-
-                                                        {isAdminView && (
-                                                            <Tooltip content="Download file" variant="dark">
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => window.open(item.file_url, '_blank')}
-                                                                >
-                                                                    <Download className="w-4 h-4" />
-                                                                </Button>
+                                                        <Tooltip content="Delete (Not Implemented)" variant="dark">
+                                                            <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600"><Delete className="w-4 h-4" /></Button>
                                                             </Tooltip>
-                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -598,87 +506,11 @@ export function ContentDashboard({ userId, isAdminView }: ContentDashboardProps)
             )}
 
             {/* Content Detail Modal */}
-            {selectedContent && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <Card className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                        <CardHeader>
-                            <div className="flex justify-between items-start">
-                                <CardTitle className="flex items-center gap-2">
-                                    {getTypeIcon(selectedContent.type)}
-                                    {selectedContent.title}
-                                </CardTitle>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setSelectedContent(null)}
-                                >
-                                    ×
-                                </Button>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div><strong>Store:</strong> {selectedContent.stores.name}</div>
-                                <div><strong>Company:</strong> {selectedContent.stores.brand_company}</div>
-                                <div><strong>Type:</strong> {selectedContent.type}</div>
-                                <div><strong>Size:</strong> {formatFileSize(selectedContent.file_size)}</div>
-                                <div><strong>Start Date:</strong> {format(new Date(selectedContent.start_date), 'MMM dd, yyyy')}</div>
-                                <div><strong>End Date:</strong> {format(new Date(selectedContent.end_date), 'MMM dd, yyyy')}</div>
-                                <div><strong>Recurrence:</strong> {selectedContent.recurrence_type}</div>
-                                <div><strong>Uploaded:</strong> {format(new Date(selectedContent.created_at), 'MMM dd, yyyy HH:mm')}</div>
-                            </div>
 
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="default"
-                                    onClick={() => window.open(selectedContent.file_url, '_blank')}
-                                    className="flex-1"
-                                >
-                                    <Download className="w-4 h-4 mr-2" />
-                                    Download File
-                                </Button>
-                            </div>
-
-                            {/* Media Preview */}
-                            {selectedContent.type === 'image' && (
-                                <div className="mt-4 relative">
-                                    <div className="relative w-full h-auto aspect-video">
-                                        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                                            <NextImage
-                                                src={selectedContent.file_url}
-                                                alt={selectedContent.title}
-                                                fill
-                                                className="object-contain rounded-lg"
-                                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {selectedContent.type === 'video' && (
-                                <div className="mt-4">
-                                    <video
-                                        src={selectedContent.file_url}
-                                        controls
-                                        className="max-w-full h-auto rounded-lg"
-                                    />
-                                </div>
-                            )}
-
-                            {selectedContent.type === 'music' && (
-                                <div className="mt-4">
-                                    <audio
-                                        src={selectedContent.file_url}
-                                        controls
-                                        className="w-full"
-                                    />
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
+            <ContentDetailModal
+                item={selectedContent}
+                onClose={() => setSelectedContent(null)}
+            />
         </div>
     );
 }

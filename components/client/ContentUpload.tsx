@@ -1,3 +1,5 @@
+// components/client/ContentUpload.tsx
+
 'use client';
 
 import { useState, useCallback } from 'react';
@@ -6,7 +8,7 @@ import { createClient } from '@/utils/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Upload, File } from 'lucide-react';
 import { insertContent } from '@/app/actions/data-actions';
 import type { ContentData } from '@/app/actions/data-actions';

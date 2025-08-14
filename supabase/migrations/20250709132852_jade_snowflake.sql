@@ -57,10 +57,3 @@ CREATE POLICY "Admins can read all stores"
   FOR SELECT
   TO authenticated
   USING ( (auth.jwt() ->> 'role') = 'admin' );
-
--- Add this policy to allow admins to manage any user's profile
-CREATE POLICY "Admins can update any profile"
-    ON profiles
-    FOR UPDATE
-    TO authenticated
-    USING ( (auth.jwt() ->> 'role') = 'admin' );

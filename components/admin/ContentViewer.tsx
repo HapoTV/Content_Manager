@@ -1,7 +1,7 @@
 // components/admin/ContentViewer.tsx
 'use client';
 
-import {useState, useEffect, useCallback, useMemo} from 'react';
+import {useState, useEffect, useCallback, useMemo, useRef} from 'react'; // 1. Import useRef
 import NextImage from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fetchAllContent } from '@/app/actions/data-actions';
+import {ContentDetailModal} from "@/components/content/ContentDetailModal";
+import { getTypeIcon, getStatusBadge, formatFileSize } from '@/utils/contentUtils';
 
 interface ContentItem {
   id: string;
@@ -58,6 +60,26 @@ export function ContentViewer() {
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const modalRef = useRef<HTMLDivElement>(null); // 2. Create a ref for the modal
+
+  // 3. Add useEffect for handling outside clicks
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        setSelectedContent(null); // Close the modal
+      }
+    }
+
+    // Bind the event listener
+    if (selectedContent) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    // Unbind the event listener on clean up
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [selectedContent]); // Only re-run the effect if selectedContent changes
 
 
   const fetchContent = useCallback(async () => {
@@ -120,7 +142,7 @@ export function ContentViewer() {
     if (viewMode !== 'grid') {
       groupContent();
     }
-  }, [viewMode, groupContent]);
+  }, [viewMode, sortOrder, content, groupContent]);
 
   const sortedContent = useMemo(() => {
     return [...content].sort((a, b) => {
@@ -130,39 +152,10 @@ export function ContentViewer() {
     });
   }, [content, sortOrder]);
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-        // eslint-disable-next-line jsx-a11y/alt-text
-      case 'image': return <Image className="w-4 h-4" />;
-      case 'video': return <Video className="w-4 h-4" />;
-      case 'music': return <Music className="w-4 h-4" />;
-      default: return <Folder className="w-4 h-4" />;
-    }
-  };
 
-  const formatFileSize = (bytes: number) => {
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    if (bytes === 0) return '0 Bytes';
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-  };
-
-  const getStatusBadge = (item: ContentItem) => {
-    const now = new Date();
-    const startDate = new Date(item.start_date);
-    const endDate = new Date(item.end_date);
-
-    if (startDate > now) {
-      return <Badge variant="outline" className="text-blue-600 border-blue-200">Scheduled</Badge>;
-    } else if (endDate < now) {
-      return <Badge variant="secondary" className="text-gray-600">Archived</Badge>;
-    } else {
-      return <Badge variant="default" className="bg-green-600 text-white">Active</Badge>;
-    }
-  };
 
   const ContentCard = ({ item }: { item: ContentItem }) => (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden group cursor-pointer">
+    <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden group cursor-pointer" onClick={() => setSelectedContent(item)}>
       {/* Image/Video Preview */}
       <div className="relative aspect-video bg-gray-100 overflow-hidden">
         {item.type === 'image' && (
@@ -241,7 +234,7 @@ export function ContentViewer() {
 
         {/* Type badge */}
         <div className="absolute top-2 left-2">
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-xs capitalize">
             {item.type}
           </Badge>
         </div>
@@ -366,8 +359,8 @@ export function ContentViewer() {
           )}
         </div>
       ) : (
-        /* Grouped View (existing functionality) */
-      <div className="grid gap-6">
+        /* --- MODIFIED Grouped View --- */
+        <div className="space-y-6">
         {Object.entries(groupedContent).map(([primaryKey, secondaryGroups]) => (
           <Card key={primaryKey}>
             <CardHeader>
@@ -377,53 +370,21 @@ export function ContentViewer() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {Object.entries(secondaryGroups).map(([secondaryKey, typeGroups]) => (
                   <div key={secondaryKey} className="border-l-2 border-gray-200 pl-4">
-                    <h4 className="font-medium text-gray-700 mb-2">{secondaryKey}</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <h4 className="font-medium text-gray-800 mb-4">{secondaryKey}</h4>
+                      <div className="space-y-6">
                       {Object.entries(typeGroups).map(([type, items]) => (
-                        <div key={type} className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                          <div key={type}>
+                            <div className="flex items-center gap-2 text-md font-semibold text-gray-800 mb-3">
                             {getTypeIcon(type)}
-                            {type} ({items.length})
+                              <span className="capitalize">{type}</span>
+                              <Badge variant="secondary">{items.length}</Badge>
                           </div>
-                          <div className="space-y-1">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                             {items.map(item => (
-                              <Tooltip
-                                key={item.id}
-                                content={`Click to view details for ${item.title}`}
-                                variant="dark"
-                                position="top"
-                              >
-                                <div
-                                  className="p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100 transition-colors"
-                                  onClick={() => setSelectedContent(item)}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <div className="text-sm font-medium truncate">{item.title}</div>
-                                    <Tooltip content="Download this file" variant="dark">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          window.open(item.file_url, '_blank');
-                                        }}
-                                        className="ml-2 h-6 w-6 p-0"
-                                      >
-                                        <Download className="w-3 h-3" />
-                                      </Button>
-                                    </Tooltip>
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    {format(new Date(item.created_at), 'MMM dd, yyyy')}
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    {formatFileSize(item.file_size)}
-                                  </div>
-                                </div>
-                              </Tooltip>
+                                <ContentCard key={item.id} item={item} />
                             ))}
                           </div>
                         </div>
@@ -439,125 +400,10 @@ export function ContentViewer() {
       )}
 
       {/* Content Detail Modal */}
-      {selectedContent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <CardTitle className="flex items-center gap-2">
-                  {getTypeIcon(selectedContent.type)}
-                  {selectedContent.title}
-                </CardTitle>
-                <Tooltip content="Close details">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400"
-                    onClick={() => setSelectedContent(null)}
-                  >
-                    ×
-                  </Button>
-                </Tooltip>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <strong>Store:</strong> {selectedContent.stores.name}
-                </div>
-                <div>
-                  <strong>Company:</strong> {selectedContent.stores.brand_company}
-                </div>
-                <div>
-                  <strong>Type:</strong> {selectedContent.type}
-                </div>
-                <div>
-                  <strong>Size:</strong> {formatFileSize(selectedContent.file_size)}
-                </div>
-                <div>
-                  <strong>Start Date:</strong> {format(new Date(selectedContent.start_date), 'MMM dd, yyyy')}
-                </div>
-                <div>
-                  <strong>End Date:</strong> {format(new Date(selectedContent.end_date), 'MMM dd, yyyy')}
-                </div>
-                <div>
-                  <strong>Recurrence:</strong> {selectedContent.recurrence_type}
-                </div>
-                <div>
-                  <strong>Uploaded:</strong> {format(new Date(selectedContent.created_at), 'MMM dd, yyyy HH:mm')}
-                </div>
-              </div>
-
-              {selectedContent.recurrence_days && selectedContent.recurrence_days.length > 0 && (
-                <div>
-                  <strong>Recurrence Days:</strong> {selectedContent.recurrence_days.join(', ')}
-                </div>
-              )}
-
-              <div>
-                <strong>Address:</strong> {selectedContent.stores.address}
-              </div>
-
-              <div className="flex gap-2 pt-4">
-                <Tooltip content="Download this file" variant="dark">
-                  <Button
-                    variant="default"
-                    onClick={() => window.open(selectedContent.file_url, '_blank')}
-                    className="flex-1"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Download File
-                  </Button>
-                </Tooltip>
-                <Tooltip content="Open file in new tab" variant="dark">
-                  <Button
-                    variant="outline"
-                    onClick={() => window.open(selectedContent.file_url, '_blank')}
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
-                </Tooltip>
-              </div>
-
-              {selectedContent.type === 'image' && (
-                <div className="mt-4 relative">
-                  <div className="relative w-full h-auto aspect-video">
-                    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                      <NextImage
-                        src={selectedContent.file_url}
-                        alt={selectedContent.title}
-                        fill
-                        className="object-contain rounded"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedContent.type === 'video' && (
-                <div className="mt-4">
-                  <video
-                    src={selectedContent.file_url}
-                    controls
-                    className="max-w-full h-auto rounded"
-                  />
-                </div>
-              )}
-
-              {selectedContent.type === 'music' && (
-                <div className="mt-4">
-                  <audio
-                    src={selectedContent.file_url}
-                    controls
-                    className="w-full"
-                  />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <ContentDetailModal
+          item={selectedContent}
+          onClose={() => setSelectedContent(null)}
+      />
     </div>
   );
 }

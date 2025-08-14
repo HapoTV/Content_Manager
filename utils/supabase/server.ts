@@ -13,33 +13,43 @@ interface CreateClientOptions {
 let serviceRoleClient: SupabaseClient | undefined;
   
 export const createClient = async (options?: CreateClientOptions) => {
+  console.log('[createClient] Initializing Supabase client creation...');
+
   // If the service role is requested, create a pure, admin-level client.
   // This client does not need cookies and is cached.
   if (options?.useServiceRole) {
+    console.log('[createClient] Attempting to create a service role client.');
+
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('[createClient] FATAL ERROR: SUPABASE_SERVICE_ROLE_KEY is not set in .env.local');
       throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set in .env.local');
     }
 
     // Use the cached client if it exists
     if (serviceRoleClient) {
+      console.log('[createClient] Returning cached service role client.');
       return serviceRoleClient;
     }
 
+    console.log('[createClient] No cached service role client found. Creating a new one.');
     // Create a new service role client using the base SupabaseClient constructor
     serviceRoleClient = new SupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY, // Use the service key
       { auth: { persistSession: false } } // Server-side client, no need to persist sessions
     );
+    console.log('[createClient] New service role client created successfully.');
 
     return serviceRoleClient;
   }
 
   // --- For all other cases, create a standard, user-session client ---
-  // We now correctly await the cookies() call as the error suggests.
+  console.log('[createClient] Creating a standard user-session client.');
+  try {
   const cookieStore = await cookies();
+    console.log('[createClient] Cookie store retrieved successfully.');
 
-  return createServerClient(
+    const client = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // Use the anonymous key
     {
@@ -55,19 +65,23 @@ export const createClient = async (options?: CreateClientOptions) => {
           try {
             cookieStore.set({ name, value, ...options });
             } catch (error) {
-            // The `set` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing cookies.
+              console.warn(`[createClient] Warning: Failed to set cookie '${name}' from a Server Component. This can be ignored if you have middleware refreshing cookies.`);
           }
         },
         remove(name: string, options: CookieOptions) {
             try {
             cookieStore.set({ name, value: '', ...options });
             } catch (error) {
-            // The `delete` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing cookies.
+              console.warn(`[createClient] Warning: Failed to remove cookie '${name}' from a Server Component. This can be ignored if you have middleware refreshing cookies.`);
             }
       },
     },
     }
   );
+    console.log('[createClient] Standard user-session client created successfully.');
+    return client;
+  } catch (error) {
+    console.error('[createClient] CRITICAL ERROR: Failed to create standard user-session client.', error);
+    throw error; // Re-throw the error after logging to ensure the application fails as expected.
+  }
 };
