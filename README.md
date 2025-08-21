@@ -333,3 +333,41 @@ For support, questions, or feature requests:
 ---
 
 Built with ❤️ using Next.js, TypeScript, and Supabase
+
+## 📦 Releases
+
+This project uses Git tags to generate GitHub Releases automatically.
+
+How to create a release:
+
+1. Ensure your changes are committed to your main branch.
+2. Bump the version in package.json if needed.
+3. Create a version tag locally using npm:
+   - npm run release:tag
+   This will create a tag like v0.1.4 based on the current package.json version.
+4. Push the tag to the remote repository:
+   - git push origin v0.1.4
+
+What happens next:
+- A GitHub Action (.github/workflows/release.yml) will run on tag push and create a GitHub Release named after the tag.
+- The workflow attempts to build a changelog from merged PRs using mikepenz/release-changelog-builder-action.
+
+Notes:
+- If you don’t use PRs, you can edit CHANGELOG.md manually for notable changes.
+- Tag format must start with v (e.g., v1.2.3).
+
+## 🧹 Git and IDE files
+
+Do not commit IDE-specific files to the repository. In particular, JetBrains IDE project files under `.idea/` (including `.idea/dataSources.xml`) are user- and machine-specific and may contain local database connection details. These are ignored via `.gitignore`.
+
+If `.idea/dataSources.xml` (or any other `.idea` file) is already tracked, run the following to stop tracking it and keep it locally only:
+
+```bash
+# Remove tracked IDE files while keeping local copies
+git rm --cached -r .idea
+# Or remove a specific file
+# git rm --cached .idea/dataSources.xml
+
+# Commit the change
+git commit -m "chore(git): ignore JetBrains .idea project files"
+```

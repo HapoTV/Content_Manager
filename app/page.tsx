@@ -86,12 +86,6 @@ export default function Home() {
                   Client Login
                 </Button>
                 </Link>
-              <Link href="/auth/admin/signin">
-                <Button size="sm">
-                  <Shield className="w-4 h-4 mr-2" />
-                  Admin Login
-                </Button>
-                </Link>
               </div>
           </div>
         </div>
@@ -120,12 +114,12 @@ export default function Home() {
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
-                <Link href="/auth/admin/signin">
+               {/* <Link href="/auth/admin/signin">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto px-8 py-4 text-lg">
                   <Shield className="w-5 h-5 mr-2" />
                   Admin Dashboard
                 </Button>
-                </Link>
+                </Link>*/}
             </div>
           </div>
               </div>
