@@ -1,10 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { FormField } from '@/components/ui/FormField'; // Use the new component
-import { Mail, Lock, Chrome } from 'lucide-react';
+import { Mail, Lock, Chrome, Eye, EyeOff } from 'lucide-react';
 import { useAuthForm } from '@/hooks/useAuthForm'; // Use the new hook
 import Link from 'next/link';
 
@@ -23,6 +24,8 @@ export function AuthForm({ mode, userType = 'client' }: AuthFormProps) {
     handleSubmit,
     signInWithGoogle,
   } = useAuthForm(mode, userType);
+
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -69,14 +72,23 @@ export function AuthForm({ mode, userType = 'client' }: AuthFormProps) {
           />
           </FormField>
           <FormField label="Password" icon={Lock}>
-          <Input
-            type="password"
-            placeholder="Password"
-                value={formData.password || ''}
-                onChange={(e) => handleInputChange('password', e.target.value)}
-            required
-                className="pl-10"
-          />
+            <Input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Password"
+              value={formData.password || ''}
+              onChange={(e) => handleInputChange('password', e.target.value)}
+              required
+              className="pl-10 pr-10"
+            />
+            <button
+              type="button"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-pressed={showPassword}
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </FormField>
           {mode === 'signin' && (
             <div className="text-right">

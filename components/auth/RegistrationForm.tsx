@@ -1,10 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { FormField } from '@/components/ui/FormField'; // Use the new component
-import { User, Mail, Lock, Phone, AtSign, Chrome } from 'lucide-react';
+import { User, Mail, Lock, Phone, AtSign, Chrome, Eye, EyeOff } from 'lucide-react';
 import { useAuthForm } from '@/hooks/useAuthForm'; // Use the same hook
 import { cn } from '@/lib/utils';
 
@@ -24,6 +25,9 @@ export function RegistrationForm({ userType = 'client' }: RegistrationFormProps)
     handleSubmit,
     signInWithGoogle,
   } = useAuthForm('signup', userType);
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -99,16 +103,42 @@ export function RegistrationForm({ userType = 'client' }: RegistrationFormProps)
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label="Password *" icon={Lock} error={errors.password}>
               <Input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="Create a password"
                   value={formData.password || ''}
                   onChange={(e) => handleInputChange('password', e.target.value)}
                   onBlur={() => handleBlur('password')}
                   required
-                  className={cn('pl-10', errors.password && 'border-destructive')} />
+                  className={cn('pl-10 pr-10', errors.password && 'border-destructive')} />
+              <button
+                type="button"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </FormField>
             <FormField label="Confirm Password *" icon={Lock} error={errors.confirmPassword}>
-              <Input type="password" placeholder="Confirm your password" value={formData.confirmPassword || ''} onChange={(e) => handleInputChange('confirmPassword', e.target.value)} onBlur={() => handleBlur('confirmPassword')} required className={cn('pl-10', errors.confirmPassword && 'border-destructive')} />
+              <Input
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="Confirm your password"
+                value={formData.confirmPassword || ''}
+                onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                onBlur={() => handleBlur('confirmPassword')}
+                required
+                className={cn('pl-10 pr-10', errors.confirmPassword && 'border-destructive')}
+              />
+              <button
+                type="button"
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showConfirmPassword}
+                onClick={() => setShowConfirmPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </FormField>
           </div>
           <FormField label="Phone Number *" icon={Phone} error={errors.phoneNumber}>
