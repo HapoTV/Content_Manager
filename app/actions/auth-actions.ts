@@ -266,3 +266,82 @@ export async function updateUserAfterOAuth(
         };
     }
 }
+
+/**
+ * Switch a user's role between 'client' and 'admin'. Only admins may perform this action.
+ * Updates both auth app_metadata and the profiles table to keep data consistent.
+ */
+export async function switchUserRole(
+    targetUserId: string,
+    newRole: 'client' | 'admin'
+): Promise<{ success: boolean; message?: string; error?: string }>
+{
+    try {
+        // 1) Validate input
+        if (!targetUserId) {
+            return { success: false, error: 'Target user id is required' };
+        }
+        if (newRole !== 'client' && newRole !== 'admin') {
+            return { success: false, error: 'Invalid role. Must be "client" or "admin"' };
+        }
+
+        // 2) Create a standard client to identify and authorize the requester
+        const requesterClient = await createClient() as SupabaseClient;
+        const { data: { user: requester }, error: getUserError } = await requesterClient.auth.getUser();
+        if (getUserError) {
+            console.error('switchUserRole: Failed to get current user:', getUserError);
+            return { success: false, error: getUserError.message };
+        }
+        if (!requester) {
+            return { success: false, error: 'Not authenticated' };
+        }
+
+        // 3) Ensure requester is an admin (check profiles)
+        const { data: requesterProfile, error: profileError } = await requesterClient
+            .from('profiles')
+            .select('role')
+            .eq('id', requester.id)
+            .single();
+
+        if (profileError) {
+            console.error('switchUserRole: Failed to fetch requester profile:', profileError);
+            return { success: false, error: profileError.message };
+        }
+        if (requesterProfile?.role !== 'admin') {
+            return { success: false, error: 'Permission denied. Admin role required.' };
+        }
+
+        // Optional safety: prevent an admin from demoting themselves to avoid lockout
+        if (requester.id === targetUserId && newRole === 'client') {
+            return { success: false, error: 'Admins cannot demote themselves.' };
+        }
+
+        // 4) Use service role for privileged updates
+        const adminClient = await createClient({ useServiceRole: true }) as SupabaseClient;
+
+        // 4a) Update auth app_metadata.role
+        const { error: authUpdateError } = await adminClient.auth.admin.updateUserById(targetUserId, {
+            app_metadata: { role: newRole },
+            user_metadata: { role: newRole }
+        });
+        if (authUpdateError) {
+            console.error('switchUserRole: Failed to update auth app_metadata:', authUpdateError);
+            return { success: false, error: authUpdateError.message };
+        }
+
+        // 4b) Update profiles.role to keep in sync
+        const { error: profileUpdateError } = await adminClient
+            .from('profiles')
+            .update({ role: newRole })
+            .eq('id', targetUserId);
+        if (profileUpdateError) {
+            console.error('switchUserRole: Failed to update profile role:', profileUpdateError);
+            return { success: false, error: profileUpdateError.message };
+        }
+
+        return { success: true, message: `Role updated to '${newRole}' for user ${targetUserId}` };
+    } catch (error: any) {
+        console.error('switchUserRole: Unexpected error:', error);
+        return { success: false, error: error.message };
+    }
+}

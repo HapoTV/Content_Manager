@@ -10,6 +10,7 @@ import { ToastProvider } from '@/components/ui/Toast';
 import { Key } from 'lucide-react';
 import { usePasswordResetFlow } from '@/hooks/usePasswordResetFlow';
 import { PasswordForm } from '@/components/auth/PasswordForm';
+import { Input } from '@/components/ui/Input';
 
 function ResetPasswordContent() {
     const {
@@ -43,6 +44,12 @@ function ResetPasswordContent() {
                             )}
                         </CardHeader>
                         <CardContent>
+                            {isNewUser && (
+                                <div className="space-y-2 mb-4">
+                                    <label className="block text-sm font-medium text-muted-foreground">Email</label>
+                                    <Input type="email" value={userEmail || ''} readOnly className="bg-muted cursor-not-allowed" />
+                                </div>
+                            )}
                             <PasswordForm
                                 isNewUser={isNewUser}
                                 onSubmit={handleSubmit}

@@ -85,7 +85,8 @@ export async function fetchStoresByUserId(userId: string): Promise<{
     error?: string
 }> {
     try {
-        const supabase = await createClient() as SupabaseClient;
+        // Use service role to ensure admins can read client stores regardless of RLS
+        const supabase = await createClient({ useServiceRole: true }) as SupabaseClient;
 
         const {data, error} = await supabase
             .from('stores')
@@ -135,19 +136,19 @@ export async function insertContent(contentData: ContentData): Promise<{ success
     }
 }
 
-export async function fetchContentForUser(userId: string): Promise<{
+export async function fetchContentForUser(userId: string, options?: { useServiceRole?: boolean }): Promise<{
     success: boolean;
     content?: any[];
     error?: string
 }> {
     try {
-        const supabase = await createClient() as SupabaseClient;
+        const supabase = await createClient(options?.useServiceRole ? { useServiceRole: true } : undefined) as SupabaseClient;
 
         const {data, error} = await supabase
             .from('content')
             .select(`
         *,
-        stores (name, brand_company)
+        stores (name, brand_company, address)
       `)
             .eq('user_id', userId)
             .order('created_at', {ascending: false});
@@ -199,7 +200,8 @@ export async function fetchContentStatsByUserId(userId: string): Promise<{
     error?: string
 }> {
     try {
-        const supabase = await createClient() as SupabaseClient;
+        // Use service role to ensure admins can read client content regardless of RLS
+        const supabase = await createClient({ useServiceRole: true }) as SupabaseClient;
 
         const {data, error} = await supabase
             .from('content')

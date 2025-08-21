@@ -72,7 +72,8 @@ export function ClientHeader({ user, isAdminView, viewingClient }: ClientHeaderP
                                             {isAdminView ? 'Admin View: Client Dashboard' : 'Client Dashboard'}
                                         </h1>
                                         {isAdminView && (
-                                            <Tooltip content="You are viewing this client's dashboard as an admin">
+                                            <Tooltip
+                                                content="You are viewing this client's dashboard as an admin">
                                                 {/* THEME: 'text-orange-600' becomes 'text-primary' for consistency. */}
                                                 <Shield className="w-5 h-5 text-primary" />
                                             </Tooltip>

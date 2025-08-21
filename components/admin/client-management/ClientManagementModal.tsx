@@ -16,6 +16,8 @@ import {
     sendPasswordReset,
 } from '@/app/actions/user-management-actions';
 import {getClientDataAsCsv} from '@/app/actions/download-data-action';
+import { switchUserRole } from '@/app/actions/auth-actions';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 
 interface ClientManagementModalProps {
     client: Client | null,
@@ -38,6 +40,7 @@ export function ClientManagementModal({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [activeAction, setActiveAction] = useState<string | null>(null);
     const [newEmail, setNewEmail] = useState('');
+    const [showRoleConfirm, setShowRoleConfirm] = useState(false);
 
     useEffect(() => {
         if (!client) setNewEmail('');
@@ -66,6 +69,18 @@ export function ClientManagementModal({
     const handleDownloadData = async () => {
         const result = await getClientDataAsCsv(client.id, client.email);
         if (!result.success) showNotification('error', result.error || 'Failed to download data');
+    };
+
+    const handleConfirmSwitchRole = async () => {
+        const newRole = client.role === 'admin' ? 'client' : 'admin';
+        await runAction(
+            'switchRole',
+            switchUserRole(client.id, newRole).then(res => ({
+                success: res.success,
+                message: res.success ? (res.message || `Role updated to '${newRole}'.`) : (res.error || 'Failed to update role')
+            }))
+        );
+        setShowRoleConfirm(false);
     };
 
     return (
@@ -167,6 +182,20 @@ export function ClientManagementModal({
                                         ? <LoadingSpinner size="sm"/> : 'Send Magic Link'}
                                 </Button>
                             </div>
+
+                            {/* Role Management */}
+                            <div className="space-y-3">
+                                <h5 className="font-medium text-foreground flex items-center gap-2">
+                                    <Shield className="w-4 h-4"/>Role Management</h5>
+                                <p className="text-sm text-muted-foreground">Current role: {client.role}. You can {client.role === 'admin' ? 'demote to client' : 'promote to admin'}.</p>
+                                <Button
+                                    onClick={() => setShowRoleConfirm(true)}
+                                    disabled={isSubmitting}
+                                    variant={client.role === 'admin' ? 'outline' : 'default'}
+                                    className="w-full">
+                                    {isSubmitting && activeAction === 'switchRole' ? <LoadingSpinner size="sm"/> : (client.role === 'admin' ? 'Make Client' : 'Make Admin')}
+                                </Button>
+                            </div>
                         </div>
                     </div>
 
@@ -202,6 +231,14 @@ export function ClientManagementModal({
                     </div>
                 </CardContent>
             </Card>
+            <ConfirmModal
+                isOpen={showRoleConfirm}
+                onClose={() => setShowRoleConfirm(false)}
+                onConfirm={handleConfirmSwitchRole}
+                title={client.role === 'admin' ? 'Demote to Client' : 'Promote to Admin'}
+                description={`Are you sure you want to ${client.role === 'admin' ? 'demote' : 'promote'} ${client.email} ${client.role === 'admin' ? 'to client' : 'to admin'}?`}
+                confirmText={client.role === 'admin' ? 'Make Client' : 'Make Admin'}
+            />
         </div>
     );
 }

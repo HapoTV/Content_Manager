@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { FormField } from '@/components/ui/FormField'; // Use the new component
 import { Mail, Lock, Chrome } from 'lucide-react';
 import { useAuthForm } from '@/hooks/useAuthForm'; // Use the new hook
+import Link from 'next/link';
 
 interface AuthFormProps {
   mode: 'signin' | 'signup';
@@ -77,6 +78,13 @@ export function AuthForm({ mode, userType = 'client' }: AuthFormProps) {
                 className="pl-10"
           />
           </FormField>
+          {mode === 'signin' && (
+            <div className="text-right">
+              <Link href="/auth/reset-password" className="text-sm text-muted-foreground hover:underline">
+                Forgot your password?
+              </Link>
+            </div>
+          )}
           <Button
               type="submit"
               className="w-full"

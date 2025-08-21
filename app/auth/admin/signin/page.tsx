@@ -24,6 +24,17 @@ export default function AdminSignIn() {
           <p className="text-gray-600 mt-2">Access the marketing dashboard</p>
         </div>
         <AuthForm mode="signin" userType="admin" />
+        <div className="text-center mt-6">
+          <p className="text-sm text-gray-600">
+            Prefer passwordless?{' '}
+            <a
+              href="/auth/admin/magic-link"
+              className="font-medium text-blue-600 hover:underline"
+            >
+              Use a magic link
+            </a>
+          </p>
+        </div>
       </div>
     </div>
     </ToastProvider>

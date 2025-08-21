@@ -110,7 +110,7 @@ export async function inviteUser(email: string, role: 'client' | 'admin' = 'clie
 
         const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
             data: { role: role },
-            redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback`
+            redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/reset-password?source=invite`
         });
 
         if (error) {

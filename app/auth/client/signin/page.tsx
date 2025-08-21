@@ -50,6 +50,19 @@ export default function ClientSignIn() {
             </Link>
           </p>
         </div>
+
+        {/* Or use magic link */}
+        <div className="text-center mt-2">
+          <p className="text-sm text-muted-foreground">
+            Prefer passwordless?{' '}
+            <Link
+              href="/auth/client/magic-link"
+              className="font-medium text-primary hover:underline"
+            >
+              Use a magic link
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
